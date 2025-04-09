@@ -1,3 +1,4 @@
+#include <stdio.h> //Added for size_t
 
 // Uncomment the next line to enable debug printing
 #define DEBUG       // Enable debug printing
