@@ -32,6 +32,7 @@ TNode *make_node(unsigned int key, TData *data) {
     node->pdata = data;
     node->prev = NULL;
     node->next = NULL;
+    node->tail = NULL;
 
     return node;
 }
@@ -52,7 +53,9 @@ void insert_node(TNode **llist, TNode *node, int dir) {
         (*llist)->tail = *llist;
     }
     else 
-        if(((*llist)->key >= node->key && dir == 0) || (((*llist)->key <= node->key) && dir == 1)) {
+        if(((*llist)->key >= node->key && dir == 0) || (((*llist)->key <= node->key) && dir == 1)) { //Insert at the start
+            node->tail = (*llist)->tail;
+
             node->next = *llist;
             (*llist)->prev = node;
             *llist = node;
@@ -70,14 +73,14 @@ void insert_node(TNode **llist, TNode *node, int dir) {
                     trav = trav->next;
 
             if(trav->next == NULL && ((trav->key < node->key && dir == 0) || 
-                        (trav->key > node->key && dir == 1))) {
+                        (trav->key > node->key && dir == 1))) { //Insert at the end
                 trav->next = node;
                 node->prev = trav;
 
                 // Set the tail
                 (*llist)->tail = node;
-            } else {
-                // Insert into the previous space
+            } else { //Insert between nodes
+                node->tail = (*llist)->tail;
 
                 node->next = trav;
 
@@ -117,14 +120,18 @@ void delete_node(TNode **llist, TNode *node) {
 
         // We've found the deletion point
         if(trav != NULL) {
-            trav->prev->next = trav->next;
+            trav->prev->next = trav->next; //No need to check trav->prev for NULL since trav is not head of linked list
 
             if(trav->next != NULL) 
                 trav->next->prev = trav->prev;
             else
                 (*llist)->tail = trav->prev;
         }
+    }
 
+    if(node->pdata != NULL){
+        free(node->pdata);
+        node->pdata = NULL;
     }
 
     free(node);
