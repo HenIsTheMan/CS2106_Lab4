@@ -1,6 +1,6 @@
 #include <stdio.h> //Added for size_t
 
-#define MEMSIZE 8         // Size of memory in bytes (was 64)
+#define MEMSIZE 64         // Size of memory in bytes
 
 // Used by the test harness
 long get_index(void *ptr);

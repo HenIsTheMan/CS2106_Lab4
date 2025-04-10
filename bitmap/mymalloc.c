@@ -6,7 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-char _heap[MEMSIZE] = {0};
+#define BITMAP_SIZE MEMSIZE / 8
+
+char _heap[MEMSIZE] = {0}; //Each char represents 1 unit allocated (given as 1 byte in brief) in mem (bits do not matter here)
+
+char bitmap[BITMAP_SIZE] = {0}; //Each bit in each char represents 1 unit allocated (given as 1 byte in brief) in mem
 
 static TNode* llist = NULL;
 
@@ -21,25 +25,25 @@ long get_index(void *ptr) {
 
 void print_memlist() {
     // Implement this to call print_map from bitmap.c
-    print_map(_heap, MEMSIZE);
+    print_map(bitmap, BITMAP_SIZE);
 }
 
 // Allocates size bytes of memory and returns a pointer
-// to the first bit.
+// to the first byte.
 void *mymalloc(size_t size) {
-    long startBitIndex = search_map(_heap, MEMSIZE, size);
+    long startIndex = search_map(bitmap, BITMAP_SIZE, size); //Shared between _heap, bitmap and llist
     
-    if(startBitIndex == -1){ //Cannot find free blk of mem large enuf to allocate due to external mem fragmentation ("no suitable memory is found")
+    if(startIndex == -1){ //Cannot find free blk of mem large enuf to allocate due to external mem fragmentation ("no suitable memory is found")
         return NULL;
     }
 
-    TNode* node = find_node(llist, startBitIndex);
+    TNode* node = find_node(llist, startIndex);
     
-    if(node == NULL){ //Cannot find node with startBitIndex as key
+    if(node == NULL){ //Cannot find node with startIndex as key
         TData* data = (TData*)malloc(sizeof(TData));
         data->len = size;
 
-        node = make_node(startBitIndex, data);
+        node = make_node(startIndex, data);
 
         insert_node(&llist, node, ASCENDING);
     } else{
@@ -52,9 +56,15 @@ void *mymalloc(size_t size) {
         node->pdata->len = size; //Update data in existing node
     }
 
-    allocate_map(_heap, startBitIndex, size);
+    allocate_map(bitmap, startIndex, size); //Populate bitmap with representation of units allocated
 
-    return _heap + startBitIndex;
+    //* Populate heap with actual units allocated
+    for(size_t i = startIndex; i < size; ++i){
+        _heap[i] = '1';
+    }
+    //*/
+
+    return _heap + startIndex;
 }
 
 // Frees memory pointed to by ptr.
@@ -63,15 +73,21 @@ void myfree(void *ptr) {
         return; //Fail silently
     }
 
-    long startBitIndex = get_index(ptr);
+    long startIndex = get_index(ptr); //Shared between...
 
-    TNode* node = find_node(llist, (unsigned int)startBitIndex);
+    TNode* node = find_node(llist, (unsigned int)startIndex);
 
     if(node == NULL){ //ptr "does not point to a memory region created by mymalloc"
         return; //Fail silently
     }
 
-    free_map(_heap, startBitIndex, node->pdata->len);
+    free_map(bitmap, startIndex, node->pdata->len); //Depopulate bitmap with representation of units deallocated
+
+    //* Depopulate heap with actual units deallocated
+    for(size_t i = startIndex; i < node->pdata->len; ++i){
+        _heap[i] = '0';
+    }
+    //*/
 
     if(node->pdata != NULL){
         free(node->pdata);
