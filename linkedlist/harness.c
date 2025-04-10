@@ -50,6 +50,8 @@ int main() {
     runfree(ptr3);
     runfree(ptr4);
     runfree(ptr5);
+
+    destroy_memlist();
 }
 
 

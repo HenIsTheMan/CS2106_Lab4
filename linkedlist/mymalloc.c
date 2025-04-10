@@ -131,6 +131,12 @@ void myfree(void *ptr) {
 
     node->isTaken = '0';
 
+    //* Depopulate heap with actual units deallocated (uses node so must be above delete_node(&_memlist, node);)
+    for(size_t i = startIndex; i < node->length; ++i){
+        _heap[i] = '0';
+    }
+    //*/
+
     //* Merge in next node if it exists and represents free mem
     if(node->next != NULL && node->next->isTaken == '0'){ //Fine if node->next == NULL due to McCarthy evaluation
         node->length += node->next->length;
@@ -143,12 +149,6 @@ void myfree(void *ptr) {
         node->prev->length += node->length;
 
         delete_node(&_memlist, node); //Handles all linking of nodes
-    }
-    //*/
-
-    //* Depopulate heap with actual units deallocated
-    for(size_t i = startIndex; i < node->length; ++i){
-        _heap[i] = '0';
     }
     //*/
 }
