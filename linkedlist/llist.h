@@ -1,3 +1,4 @@
+#include <stdio.h> //Added for size_t
 
 // Uncomment the next line to enable debug printing
 #define DEBUG       // Enable debug printing
@@ -12,9 +13,11 @@ void dbprintf(char *format, ...);
 // memory manager. You can delete the
 // val field. It is only used for testlist.c
 
+//* Not using so no need to malloc more times than necessary
 typedef struct td {
     int val;
 } TData;
+//*/
 
 
 /* ----------------------------------------- 
@@ -29,6 +32,9 @@ typedef struct td {
 typedef struct tn {
     unsigned int key;
     TData *pdata; // Pointer to the data you want to store
+
+    char isTaken; //No primitive bool :(
+    size_t length;
 
     struct tn *trav; // Only used in the root for traversal
     struct tn *tail; // Only used in the root for finding the end of the list

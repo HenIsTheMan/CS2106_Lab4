@@ -33,4 +33,5 @@ int main() {
     testfree(ptr4, "ptr4");
     testfree(ptr5, "ptr5");
 
+    destroy_memlist();
 }
