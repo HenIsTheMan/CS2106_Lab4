@@ -33,15 +33,22 @@ void *mymalloc(size_t size) {
         return NULL;
     }
 
-    TData* data = (TData*)malloc(sizeof(TData));
-    data->len = size;
-
     TNode* node = find_node(llist, startBitIndex);
     
     if(node == NULL){ //Cannot find node with startBitIndex as key
+        TData* data = (TData*)malloc(sizeof(TData));
+        data->len = size;
+
         node = make_node(startBitIndex, data);
+
         insert_node(&llist, node, ASCENDING);
     } else{
+        ///Since free(node->pdata); is called when myfree is called
+        ///and only myfree can free node->pdata according to the implementation in testmalloc.c and harness.c
+        if(node->pdata == NULL){
+            node->pdata = (TData*)malloc(sizeof(TData));
+        }
+
         node->pdata->len = size; //Update data in existing node
     }
 
@@ -60,6 +67,18 @@ void myfree(void *ptr) {
 
     TNode* node = find_node(llist, (unsigned int)startBitIndex);
 
+    if(node == NULL){ //ptr "does not point to a memory region created by mymalloc"
+        return; //Fail silently
+    }
+
     free_map(_heap, startBitIndex, node->pdata->len);
+
+    if(node->pdata != NULL){
+        free(node->pdata);
+        node->pdata = NULL;
+    }
+
+    delete_node(&llist, node);
+    node = NULL;
 }
 
