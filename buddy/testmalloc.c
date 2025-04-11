@@ -9,7 +9,8 @@ void testalloc(long size, char *ptrname, char **ptr) {
     if(*ptr == NULL) {
         printf("Allocation failed.\n");
     } else {
-        printf("Allocated %ld KB successfully to %s\n", size >> LOG_MINIMUM_BLOCK, ptrname);
+        //10 instead of LOG_MINIMUM_BLOCK as conversion from bytes to KiB is always / 2^10 and LOG_MINIMUM_BLOCK can vary
+        printf("Allocated %ld KB successfully to %s\n", size >> 10, ptrname);
     }
     print_memlist();
 }
