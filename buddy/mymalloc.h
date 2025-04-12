@@ -7,7 +7,7 @@ long get_index(void *ptr);
 
 long get_size(void *ptr);
 
-void print_memlist(); //In terms of Buddy System
+void print_memlist();
 
 void *mymalloc(size_t);
 

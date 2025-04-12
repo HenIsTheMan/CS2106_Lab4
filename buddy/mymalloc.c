@@ -58,96 +58,53 @@ void print_memlist() {
         return;
     }
 
+    int checkCount;
+    int nextCheckCount = 1; //Only need to check once when sizeToCheck == MEMSIZE
     unsigned int baseStartIndex = 0;
     unsigned int startIndexToCheck;
+    size_t sizeLeft = MEMSIZE;
     size_t sizeToCheck = MEMSIZE;
+    size_t totalSizeOfSubpartitionsLeft = MEMSIZE;
     TNode* node;
 
-
-
-
-
-    unsigned int memBlkSize; //In bytes
-
-    printf("LinkedList:");
-
-    node = _memlist;
-
-    while(node != NULL){
-        printf(" %s, %u, %zu ->",
-            node->isTaken == '1' ? "ALLOCATED" : "FREE",
-            node->key >> 10,
-            node->length >> 10
-        );
-
-        node = node->next;
-    }
-
-    printf("\n\nBuddySystem:\n");
-
-    for(int i = MAX_ORDER - 1; i >= 0; --i){
-        memBlkSize = 1 << (i + 10); //+ 10 for conversion from KiB to bytes
-
-        printf("Block size %u KiB:", memBlkSize >> 10);
-
-        if(buddySystemArr[i] == NULL){ //If all (memBlkSize >> 10) KiB blks are allocated             
-            //for(unsigned int startingAddress = 0u; startingAddress < MEMSIZE; startingAddress += memBlkSize){
-            //    printf(" %s, %u, %u ->",
-            //        "ALLOCATED",
-            //        startingAddress >> 10, //Equals to node->key >> 10
-            //        memBlkSize >> 10
-            //    );
-            //}
-        } else{
-            node = buddySystemArr[i];
-
-            while(node != NULL){
-                printf(" %s, %u, %u ->",
-                    "FREE", //Always free
-                    node->key >> 10,
-                    memBlkSize >> 10
-                );
-
-                node = node->next;
-            }
-        }
-
-        puts("");
-    }
-
-    return;
-
-
-
-
-    while(startIndexToCheck < MEMSIZE){ //??
+    while(sizeLeft > 0u){
+        printf("Block size %zu KiB:", sizeToCheck >> 10);
+        
         startIndexToCheck = baseStartIndex;
 
-        for(int i = 0; i < 2; ++i, startIndexToCheck += node->length){ //Since buddies come in pairs
+        checkCount = nextCheckCount;
+        nextCheckCount = 0;
+
+        for(int i = 0; i < checkCount; ++i, startIndexToCheck += sizeToCheck){ //Cannot do startIndexToCheck += node->length as node might be NULL
             node = find_node(_memlist, startIndexToCheck);
 
             if(node != NULL && node->length == sizeToCheck){ //If found node in _memlist (actual) that is free or fully taken
                 printf(" %s, %u, %zu ->",
                     node->isTaken == '1' ? "ALLOCATED" : "FREE",
-                    startIndexToCheck, //Same as node->key >> 10
+                    startIndexToCheck >> 10, //Same as node->key >> 10
                     sizeToCheck >> 10 //Same as node->length >> 10
                 );
-            } else{ //Confirm taken (either fully or in subpartitions)
+
+                totalSizeOfSubpartitionsLeft -= sizeToCheck;
+                sizeLeft -= sizeToCheck;
+            } else{ //Confirm taken in subpartitions
                 printf(" %s, %u, %zu ->",
                     "ALLOCATED",
-                    startIndexToCheck,
+                    startIndexToCheck >> 10,
                     sizeToCheck >> 10
                 );
 
-                baseStartIndex = startIndexToCheck;
-            }
-
-            if(sizeToCheck == MEMSIZE){ //Check once for 1st
-                break;
+                if(nextCheckCount == 0){ //We want to lowest valid baseStartIndex
+                    baseStartIndex = startIndexToCheck;
+                }
+                
+                nextCheckCount += 2;
             }
         }
 
         sizeToCheck >>= 1;
+
+        puts("");
     }
 }
 
@@ -194,7 +151,7 @@ tryToAlloc:
 
         node->isTaken = '1';
         //node->key = savedStartIndex; //Alr the case (obvious)
-        //node->length = 1 << (powOfGequalNearestPowOfTwo + 10); //+ 10 for..., Alr the case (not so obvious)
+        //node->length = 1 << (powOfGequalNearestPowOfTwo + 10); //+ 10 for...
 
         //* Populate heap with actual units allocated
         for(unsigned int i = savedStartIndex; i < savedStartIndex + size; ++i){
