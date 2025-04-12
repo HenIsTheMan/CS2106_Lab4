@@ -3,6 +3,8 @@
 #include "mymalloc.h"
 #include "llist.h"
 
+char isFirstRun = '1';
+
 char _heap[MEMSIZE] = {0}; //Simulation of the heap, each char represents a byte in mem
 
 //* node->key and node->length are in bytes
@@ -25,61 +27,79 @@ long get_size(void *ptr) { //Returns size of allocated mem blk in bytes
         return -1;
     }
 
-    TNode* node = find_node(_memlist, (unsigned int)get_index(ptr));
+    //Find in _memlist to ensure it is valid
 
-    if(node == NULL){
+    long startIndex = get_index(ptr);
+    long index = startIndex;
+
+    while(index < MEMSIZE && _heap[index] == '1'){
+        ++index;
+    }
+
+    if(index == startIndex){ //Size of 0 means ptr is not valid starting address of an allocated mem blk
         return -1;
     }
 
-    return node->length;
+    return index - startIndex;
 }
 
 void print_memlist() {
-    if(_memlist == NULL){ //Cannot print if _memlist still uninitialized
-        return; 
+    if(isFirstRun == '1'){ //Avoid printing uninitialized stuff
+        return;
     }
 
-    int stage = MAX_ORDER - 1;
-
-    size_t memSizeKiB = MEMSIZE >> (MAX_ORDER - 1);
-    size_t memBlkSizeKiB;
-    size_t sizeLeftKiB = memSizeKiB;
-
+    unsigned int memBlkSize; //In bytes
     TNode* node;
 
+    printf("LinkedList:");
+
+    node = _memlist;
+
+    while(node != NULL){
+        printf(" %s, %u, %zu ->",
+            node->isTaken == '1' ? "ALLOCATED" : "FREE",
+            node->key >> 10,
+            node->length >> 10
+        );
+
+        node = node->next;
+    }
 
 
-    //bytes??
 
-    //while(sizeLeftKiB > 0u && stage >= 0){
-    //    memBlkSizeKiB = 1 << stage;
 
-    //    printf("Block size %zu KiB:", memBlkSizeKiB);
 
-    //    for(int startingAddress = 0; startingAddress < memSizeKiB; ++memBlkSizeKiB){
-    //        node = find_node(_memlist, startingAddress);
+    printf("\n\nBuddySystem:\n");
 
-    //        if(node == NULL || node->length != memBlkSizeKiB){
-    //            continue;
-    //        }
+    for(int i = MAX_ORDER - 1; i >= 0; --i){
+        memBlkSize = 1 << (i + 10); //+ 10 for conversion from KiB to bytes
 
-    //        printf(" %s, %u, %zu ->",
-    //            node->isTaken == '1' ? "ALLOCATED" : "FREE",
-    //            node->key, //Equals to startingAddress
-    //            node->length //Equals to memBlkSizeKiB
-    //        );
+        printf("Block size %u KiB:", memBlkSize >> 10);
 
-    //        sizeLeftKiB -= memBlkSizeKiB;
+        if(buddySystemArr[i] == NULL){ //If all (memBlkSize >> 10) KiB blks are allocated             
+            //for(unsigned int startingAddress = 0u; startingAddress < MEMSIZE; startingAddress += memBlkSize){
+            //    printf(" %s, %u, %u ->",
+            //        "ALLOCATED",
+            //        startingAddress >> 10, //Equals to node->key >> 10
+            //        memBlkSize >> 10
+            //    );
+            //}
+        } else{
+            node = buddySystemArr[i];
 
-    //        if(sizeLeftKiB == 0u){
-    //            break;
-    //        }
-    //    }
+            while(node != NULL){
+                printf(" %s, %u, %u ->",
+                    "FREE", //Always free
+                    node->key >> 10,
+                    memBlkSize >> 10
+                );
 
-    //    puts("");
+                node = node->next;
+            }
+        }
 
-    //    --stage;
-    //}
+        puts("");
+    }
 }
 
 // Allocates size bytes of memory and returns a pointer
@@ -89,12 +109,12 @@ void *mymalloc(size_t size) {
         return NULL;
     }
 
-    if(_memlist == NULL){ //If _memlist is empty, Lazy Init (not the most efficient but oh wells)
+    if(isFirstRun == '1'){ //Lazy Init (not the most efficient but oh wells)
         TNode* node = make_node(0, NULL);
 
         node->key = 0; //No need to set isTaken (always free) and length (always 2^(index to buddySystemArr))
 
-        buddySystemArr[MAX_ORDER - 1] = node;
+        insert_node(buddySystemArr + MAX_ORDER - 1, node, ASCENDING);
 
         node = make_node(0, NULL);
 
@@ -103,6 +123,8 @@ void *mymalloc(size_t size) {
         node->length = MEMSIZE;
 
         insert_node(&_memlist, node, ASCENDING);
+
+        isFirstRun = '0';
     }
 
     int powOfGequalNearestPowOfTwo = -1; //Init with invalid val
@@ -131,7 +153,7 @@ tryToAlloc:
             insert_node(&_memlist, node, ASCENDING);
         } else{
             node->isTaken = '1';
-            node->key = savedStartIndex;
+            //node->key = savedStartIndex; //Alr the case
             node->length = size;
         }
 
@@ -148,6 +170,8 @@ tryToAlloc:
 
         for(int i = powOfGequalNearestPowOfTwo + 1; i < MAX_ORDER; ++i){
             if(buddySystemArr[i] != NULL){ //If free mem blk exists
+                unsigned int savedKey = buddySystemArr[i]->key; //Declare here also can since if statement is ran once
+
                 delete_node(
                     buddySystemArr + i,
                     buddySystemArr[i]
@@ -156,15 +180,15 @@ tryToAlloc:
                 for(int j = i - 1; j >= powOfGequalNearestPowOfTwo; --j){
                     node = make_node(0, NULL);
 
-                    node->key = 1 << (j + 10); //No need to set..., + 10 for...
+                    node->key = savedKey + (1 << (j + 10)); //No need to set..., + 10 for...
 
-                    buddySystemArr[j] = node;
+                    insert_node(buddySystemArr + j, node, ASCENDING);
 
                     //* Create another free buddy which will be removed when mem blk is allocated
                     if(j == powOfGequalNearestPowOfTwo){
                         node = make_node(0, NULL);
 
-                        node->key = 0;
+                        node->key = savedKey;
 
                         insert_node(buddySystemArr + j, node, ASCENDING);
                     }
