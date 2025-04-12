@@ -34,11 +34,11 @@ void print_memlist(){
 // Allocates size bytes of memory and returns a pointer
 // to the first byte.
 void *mymalloc(size_t size) {
-    if(_memlist == NULL){ //If _memlist is empty, Lazy Init
-        if(size > MEMSIZE){ //If unit to alloc cannot fit entire mem
-            return NULL;
-        }
+    if(size > MEMSIZE){ //If mem blk to alloc cannot fit entire mem
+        return NULL;
+    }
 
+    if(_memlist == NULL){ //If _memlist is empty, Lazy Init
         TNode* node = make_node(0, NULL);
 
         node->isTaken = '1';
@@ -76,14 +76,14 @@ void *mymalloc(size_t size) {
 
     if(node == NULL){ //If cannot find node that...
         //Mem is partitioned by node(s) in _memlist after Lazy Init
-        //Shows that unit to alloc cannot fit anywhere in mem due to external mem fragmentation
+        //Shows that mem blk to alloc cannot fit anywhere in mem due to external mem fragmentation
         return NULL;
     }
 
     node->isTaken = '1';
 
     if(node->length == size){
-        //* Populate heap with actual units allocated
+        //* Populate heap with actual mem units allocated
         for(size_t i = node->key; i < node->key + size; ++i){ //size instead of node->length as slightly more efficient
             _heap[i] = '1';
         }
@@ -105,7 +105,7 @@ void *mymalloc(size_t size) {
 
     insert_node(&_memlist, node, ASCENDING);
 
-    //* Populate heap with actual units allocated
+    //* Populate heap with actual mem units allocated
     for(size_t i = savedKey; i < savedKey + node->length; ++i){
         _heap[i] = '1';
     }
@@ -131,7 +131,7 @@ void myfree(void *ptr) {
 
     node->isTaken = '0';
 
-    //* Depopulate heap with actual units deallocated (uses node so must be above delete_node(&_memlist, node);)
+    //* Depopulate heap with mem units deallocated (uses node so must be above delete_node(&_memlist, node);)
     for(size_t i = startIndex; i < node->length; ++i){
         _heap[i] = '0';
     }
