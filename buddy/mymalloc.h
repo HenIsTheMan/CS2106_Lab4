@@ -7,7 +7,7 @@ long get_index(void *ptr);
 
 long get_size(void *ptr);
 
-void print_memlist(); //Shld really be renamed to reflect printing of entire struct of buddy system
+void print_memlist(); //In terms of Buddy System
 
 void *mymalloc(size_t);
 

@@ -3,14 +3,13 @@
 #include "llist.h"
 
 void testalloc(long size, char *ptrname, char **ptr) {
-    printf("\nAllocating %ld KBytes to %s\n", size >> 10, ptrname);
+    printf("\nAllocating %ld KBytes to %s\n", size >> (MAX_ORDER - 1), ptrname);
     *ptr = mymalloc(size);
 
     if(*ptr == NULL) {
         printf("Allocation failed.\n");
     } else {
-        //10 instead of LOG_MINIMUM_BLOCK as conversion from bytes to KiB is always / 2^10 and LOG_MINIMUM_BLOCK can vary
-        printf("Allocated %ld KB successfully to %s\n", size >> 10, ptrname);
+        printf("Allocated %ld KB successfully to %s\n", size >> (MAX_ORDER - 1), ptrname);
     }
     print_memlist();
 }

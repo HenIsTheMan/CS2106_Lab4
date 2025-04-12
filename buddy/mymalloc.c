@@ -1,19 +1,15 @@
-///Whole implementation goes against conventional buddy system covered in lecture but this is what they want for the lab
-
 #include <stdio.h>
 #include <stdlib.h>
 #include "mymalloc.h"
 #include "llist.h"
 
-char _heap[MEMSIZE] = {0};
+char _heap[MEMSIZE] = {0}; //Simulation of the heap, each char represents a byte in mem
 
-///Stores node->length in KiB
-TNode *_memlist = NULL; // To maintain information about length (actual length of allocated mem blks)
+//* node->key and node->length are in bytes
+TNode* _memlist = NULL; //Keeps track of allocated mem blks
 
-///Contains all buddies (taken and free, have fixed lengths of pows of 2) so "explicit"
-///Stores node->length in KiB
-///Will have internal mem fragmentation
-TNode* explicitBuddySystemArr[MAX_ORDER] = {0}; //Init all elements to NULL
+TNode* buddySystemArr[MAX_ORDER] = {0}; //Keeps track of free mem blks, {0} to init all elements to NULL
+//*/
 
 // Do not change this. Used by the test harness.
 // You may however use this function in your code if necessary.
@@ -31,194 +27,165 @@ long get_size(void *ptr) { //Returns size of allocated mem blk in bytes
 
     TNode* node = find_node(_memlist, (unsigned int)get_index(ptr));
 
-    if(node == NULL || node->isTaken == '0'){
+    if(node == NULL){
         return -1;
     }
 
-    return node->length << 10; //<< 10 for conversion from KiB to bytes
+    return node->length;
 }
 
-void print_memlist() { //Does not reflect size of each allocated blk of mem but this is what they want for the lab
+void print_memlist() {
+    if(_memlist == NULL){ //Cannot print if _memlist still uninitialized
+        return; 
+    }
+
+    int stage = MAX_ORDER - 1;
+
+    size_t memSizeKiB = MEMSIZE >> (MAX_ORDER - 1);
+    size_t memBlkSizeKiB;
+    size_t sizeLeftKiB = memSizeKiB;
+
     TNode* node;
 
-    for(int i = MAX_ORDER - 1; i >= 0; --i){
-        printf("Block size %d KiB:", 1 << i);
 
-        node = explicitBuddySystemArr[i]; //node->length is in KiB for buddies
 
-        //* Loop Unrolling applied
-        if(node != NULL){
-            printf(" %s, %u, %zu ->",
-                node->isTaken == '1' ? "ALLOCATED" : "FREE",
-                node->key,
-                node->length //same as 1 << i
-            );
+    //bytes??
 
-            node = node->next;
+    //while(sizeLeftKiB > 0u && stage >= 0){
+    //    memBlkSizeKiB = 1 << stage;
 
-            if(node != NULL){
-                printf(" %s, %u, %zu ->",
-                    node->isTaken == '1' ? "ALLOCATED" : "FREE",
-                    node->key,
-                    node->length //same as 1 << i
-                );
-            }
-        }
-        //*/
+    //    printf("Block size %zu KiB:", memBlkSizeKiB);
 
-        puts("");
-    }
+    //    for(int startingAddress = 0; startingAddress < memSizeKiB; ++memBlkSizeKiB){
+    //        node = find_node(_memlist, startingAddress);
+
+    //        if(node == NULL || node->length != memBlkSizeKiB){
+    //            continue;
+    //        }
+
+    //        printf(" %s, %u, %zu ->",
+    //            node->isTaken == '1' ? "ALLOCATED" : "FREE",
+    //            node->key, //Equals to startingAddress
+    //            node->length //Equals to memBlkSizeKiB
+    //        );
+
+    //        sizeLeftKiB -= memBlkSizeKiB;
+
+    //        if(sizeLeftKiB == 0u){
+    //            break;
+    //        }
+    //    }
+
+    //    puts("");
+
+    //    --stage;
+    //}
 }
 
 // Allocates size bytes of memory and returns a pointer
 // to the first byte.
-void *mymalloc(size_t size) { //size is in bytes
+void *mymalloc(size_t size) {
     if(size > MEMSIZE){ //If mem blk to alloc cannot fit entire mem
-        return NULL; //No space to allocate
+        return NULL;
     }
 
-    unsigned int startIndex = 0; //Init to 0 since explicitBuddySystemArr[i] == NULL is 1st run
-    size_t buddyNodeLength;
-    size_t sizeInKib = size >> 10; //>> 10 for conversion from bytes to KiB
-    char isAllocated = '0';
+    if(_memlist == NULL){ //If _memlist is empty, Lazy Init (not the most efficient but oh wells)
+        TNode* node = make_node(0, NULL);
 
-    for(int i = MAX_ORDER - 1; i >= 0; --i){
-        buddyNodeLength = 1 << i;
+        node->key = 0; //No need to set isTaken (always free) and length (always 2^(index to buddySystemArr))
 
-        if(sizeInKib > buddyNodeLength){ //If sizeInKib cannot fit into curr set of buddy partitions (existence depends on explicitBuddySystemArr[i] == NULL)
-            if(isAllocated == '0'){
-                return NULL; //No space to allocate
-            }
-            
-            break;
-        }
+        buddySystemArr[MAX_ORDER - 1] = node;
 
-        if(explicitBuddySystemArr[i] == NULL){ //Creation of buddies, Lazy Init for 1st run (no other way in this implementation)
-            //* Create left buddy 1st
-            TNode* buddyNode = make_node(startIndex, NULL); //Starting address of buddyNode is 0 since explicitBuddySystemArr[i] == NULL
+        node = make_node(0, NULL);
 
-            buddyNode->isTaken = '1'; //Always taken since left buddy and explicitBuddySystemArr[i] == NULL
-            buddyNode->length = buddyNodeLength; //In KiB
-
-            insert_node(explicitBuddySystemArr + i, buddyNode, ASCENDING);
-            //*/
-
-            //* Create right buddy if needed
-            if(i != MAX_ORDER - 1){
-                buddyNode = make_node(startIndex + buddyNodeLength, NULL); //Starting address of buddyNode is buddyNodeLength since...
-
-                buddyNode->isTaken = '0'; //Always free since right buddy and explicitBuddySystemArr[i] == NULL
-                buddyNode->length = buddyNodeLength; //In KiB
-
-                insert_node(explicitBuddySystemArr + i, buddyNode, ASCENDING);
-            }
-            //*/
-
-            isAllocated = '1';
-        } else{
-            ///explicitBuddySystemArr[i]->next definitely exists for i != MAX_ORDER - 1 due to Creation of buddies
-            if((i == MAX_ORDER - 1 && explicitBuddySystemArr[i]->isTaken == '1')
-                || (i != MAX_ORDER - 1 && explicitBuddySystemArr[i]->isTaken == '1' && explicitBuddySystemArr[i]->next->isTaken == '1')
-            ){ //If only buddy is taken or both buddies are taken
-                continue;
-            }
-
-            //* If only buddy is not taken or both buddies are not taken
-            ///2 cases for i = MAX_ORDER - 1: [if] FREE; [do nth] TAKEN;
-            ///3 cases for i != MAX_ORDER - 1: [if] FREE, FREE; [if] FREE, TAKEN; [else if] TAKEN, FREE;
-            if(explicitBuddySystemArr[i]->isTaken == '0'){ //Mark left partition as taken (means completely taken or 1 of its child partitions is taken) 1st if possible as 1st Fit
-                //* 1st Fit so no need to explore case where right partition is taken
-                explicitBuddySystemArr[i]->isTaken = '1';
-
-                startIndex = explicitBuddySystemArr[i]->key;
-                //*/
-            } else if(i != MAX_ORDER - 1){ //explicitBuddySystemArr[i]->next definitely exists...
-                if(explicitBuddySystemArr[i - 1] == NULL || (explicitBuddySystemArr[i - 1] != NULL
-                    && (sizeInKib > explicitBuddySystemArr[i - 1]->length
-                    || (explicitBuddySystemArr[i - 1]->isTaken == '1' && explicitBuddySystemArr[i - 1]->next->isTaken == '1'))
-                )){
-                    //* Mark right partition of TAKEN, FREE as taken (means...)
-                    explicitBuddySystemArr[i]->next->isTaken = '1';
-
-                    startIndex = explicitBuddySystemArr[i]->next->key;
-                    //*/
-                } else{
-                    startIndex = explicitBuddySystemArr[i]->key; //Go from left partition
-                }
-            }
-
-            isAllocated = '1';
-            //*/
-        }
-    }
-
-    //* Alloc mem blk in _memlist
-    TNode* node = find_node(_memlist, startIndex);
-
-    if(node == NULL){
-        node = make_node(startIndex, NULL);
-
-        node->isTaken = '1';
-        node->length = sizeInKib;
+        node->isTaken = '0';
+        node->key = 0;
+        node->length = MEMSIZE;
 
         insert_node(&_memlist, node, ASCENDING);
+    }
+
+    int powOfGequalNearestPowOfTwo = -1; //Init with invalid val
+
+    while(size > (1 << (++powOfGequalNearestPowOfTwo + 10))){ //Do nth in loop, + 10 for conversion from KiB to bytes
+    }
+
+tryToAlloc:
+    if(buddySystemArr[powOfGequalNearestPowOfTwo] != NULL){ //If free mem blk exists
+        unsigned int savedStartIndex = buddySystemArr[powOfGequalNearestPowOfTwo]->key; //In bytes
+
+        delete_node(
+            buddySystemArr + powOfGequalNearestPowOfTwo,
+            buddySystemArr[powOfGequalNearestPowOfTwo]
+        ); //Handles all linking of nodes
+
+        TNode* node = find_node(_memlist, savedStartIndex);
+
+        if(node == NULL){
+            node = make_node(0, NULL);
+
+            node->isTaken = '1';
+            node->key = savedStartIndex;
+            node->length = size;
+
+            insert_node(&_memlist, node, ASCENDING);
+        } else{
+            node->isTaken = '1';
+            node->key = savedStartIndex;
+            node->length = size;
+        }
+
+        //* Populate heap with actual units allocated
+        for(unsigned int i = savedStartIndex; i < savedStartIndex + size; ++i){
+            _heap[i] = '1';
+        }
+        //*/
+
+        return _heap + savedStartIndex;
     } else{
-        node->isTaken = '1';
-        node->length = sizeInKib;
-    }
-    //*/
+        char canAlloc = '0';
+        TNode* node;
 
-    //* Populate heap with units allocated
-    for(size_t i = startIndex; i < size; ++i){
-        _heap[i] = '1';
-    }
-    //*/
+        for(int i = powOfGequalNearestPowOfTwo + 1; i < MAX_ORDER; ++i){
+            if(buddySystemArr[i] != NULL){ //If free mem blk exists
+                delete_node(
+                    buddySystemArr + i,
+                    buddySystemArr[i]
+                ); //Handles all linking of nodes
 
-    return _heap + startIndex; //Returns starting address of allocated mem blk
+                for(int j = i - 1; j >= powOfGequalNearestPowOfTwo; --j){
+                    node = make_node(0, NULL);
+
+                    node->key = 1 << (j + 10); //No need to set..., + 10 for...
+
+                    buddySystemArr[j] = node;
+
+                    //* Create another free buddy which will be removed when mem blk is allocated
+                    if(j == powOfGequalNearestPowOfTwo){
+                        node = make_node(0, NULL);
+
+                        node->key = 0;
+
+                        insert_node(buddySystemArr + j, node, ASCENDING);
+                    }
+                    //*/
+                }
+
+                canAlloc = '1';
+
+                break;
+            }
+        }
+
+        if(canAlloc == '0'){ //If not enuf space in mem to alloc mem blk
+            return NULL;
+        }
+
+        goto tryToAlloc;
+    }
 }
 
 // Frees memory pointer to by ptr.
 void myfree(void *ptr) {
-    if(ptr == NULL){
-        return; //Fail silently
-    }
-
-    unsigned int startIndex = (unsigned int)get_index(ptr);
-
-    TNode* node = find_node(_memlist, startIndex);
-
-    if(node == NULL || node->isTaken == '0'){ //ptr "does not point to a memory region created by mymalloc"
-        return; //Fail silently
-    }
-
-    node->isTaken = '0';
-
-    //* Depopulate heap with actual units deallocated
-    for(size_t i = startIndex; i < node->length; ++i){
-        _heap[i] = '0';
-    }
-    //*/
-
-    int powOfGequalNearestPowOfTwo = -1; //Init with invalid val
-
-    while(node->length > (1 << ++powOfGequalNearestPowOfTwo)){
-    }
-
-    //int index;
-
-    //for(index = MAX_ORDER - 1; index >= 0; --index){ //Shld have fastest avg case if start from the end
-    //    node = find_node(explicitBuddySystemArr[index], startIndex);
-
-    //    if(node != NULL){
-    //        break;
-    //    }
-    //}
-
-    //node->isTaken = '0';
-
-    //if(node == explicitBuddySystemArr[index]){ //If left partition
-    //    if(node->isTaken
-    //} else{
-    //}
 }
 
