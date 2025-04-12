@@ -272,6 +272,7 @@ void myfree(void *ptr) {
 
                 linkedListNode = otherLinkedListNode;
 
+                //linkedListNode->isTaken = '0'; //otherLinkedListNode found using key from node in buddySystemArr[...] so alr the case
                 linkedListNode->length <<= 1;
             } else{
                 delete_node(
@@ -281,6 +282,7 @@ void myfree(void *ptr) {
 
                 otherLinkedListNode = NULL; //Just gd prac
 
+                linkedListNode->isTaken = '0';
                 linkedListNode->length <<= 1;
             }
 
@@ -289,7 +291,7 @@ void myfree(void *ptr) {
                 buddySystemArr[powOfGequalNearestPowOfTwo]
             ); //Handles all linking of nodes
 
-            powOfGequalNearestPowOfTwo <<= 1; //Move up a size lvl (multiple of 2)
+            ++powOfGequalNearestPowOfTwo; //Move up a size lvl
         }
 
         TNode* buddySystemNode = make_node(0, NULL);
