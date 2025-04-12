@@ -26,14 +26,14 @@ int main() {
     testalloc(512 * MINIMUM_BLOCK_SIZE, "ptr1", &ptr1);
     testalloc(120 * MINIMUM_BLOCK_SIZE, "ptr2", &ptr2);
     testalloc(100 * MINIMUM_BLOCK_SIZE, "ptr3", &ptr3);
-    //testfree(ptr2, "ptr2");
+    testfree(ptr2, "ptr2");
     testalloc(80 * MINIMUM_BLOCK_SIZE, "ptr2", &ptr2);
-    //testalloc(280 * MINIMUM_BLOCK_SIZE, "ptr4", &ptr4);
-    //testfree(ptr2, "ptr2");
-    //testalloc(30 * MINIMUM_BLOCK_SIZE, "ptr5", &ptr5);
-    //testfree(ptr1, "ptr1");
-    //testfree(ptr3, "ptr3");
-    //testfree(ptr4, "ptr4");
-    //testfree(ptr5, "ptr5");
+    testalloc(280 * MINIMUM_BLOCK_SIZE, "ptr4", &ptr4);
+    testfree(ptr2, "ptr2");
+    testalloc(30 * MINIMUM_BLOCK_SIZE, "ptr5", &ptr5);
+    testfree(ptr1, "ptr1");
+    testfree(ptr3, "ptr3");
+    testfree(ptr4, "ptr4");
+    testfree(ptr5, "ptr5");
 
 }

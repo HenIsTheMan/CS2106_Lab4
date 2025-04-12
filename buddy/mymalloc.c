@@ -67,38 +67,40 @@ void print_memlist() {
     size_t totalSizeOfSubpartitionsLeft = MEMSIZE;
     TNode* node;
 
-    while(sizeLeft > 0u){
+    while(sizeToCheck >= MINIMUM_BLOCK_SIZE){
         printf("Block size %zu KiB:", sizeToCheck >> 10);
         
-        startIndexToCheck = baseStartIndex;
+        if(sizeLeft > 0u){
+            startIndexToCheck = baseStartIndex;
 
-        checkCount = nextCheckCount;
-        nextCheckCount = 0;
+            checkCount = nextCheckCount;
+            nextCheckCount = 0;
 
-        for(int i = 0; i < checkCount; ++i, startIndexToCheck += sizeToCheck){ //Cannot do startIndexToCheck += node->length as node might be NULL
-            node = find_node(_memlist, startIndexToCheck);
+            for(int i = 0; i < checkCount; ++i, startIndexToCheck += sizeToCheck){ //Cannot do startIndexToCheck += node->length as node might be NULL
+                node = find_node(_memlist, startIndexToCheck);
 
-            if(node != NULL && node->length == sizeToCheck){ //If found node in _memlist (actual) that is free or fully taken
-                printf(" %s, %u, %zu ->",
-                    node->isTaken == '1' ? "ALLOCATED" : "FREE",
-                    startIndexToCheck >> 10, //Same as node->key >> 10
-                    sizeToCheck >> 10 //Same as node->length >> 10
-                );
+                if(node != NULL && node->length == sizeToCheck){ //If found node in _memlist (actual) that is free or fully taken
+                    printf(" %s, %u, %zu ->",
+                        node->isTaken == '1' ? "ALLOCATED" : "FREE",
+                        startIndexToCheck >> 10, //Same as node->key >> 10
+                        sizeToCheck >> 10 //Same as node->length >> 10
+                    );
 
-                totalSizeOfSubpartitionsLeft -= sizeToCheck;
-                sizeLeft -= sizeToCheck;
-            } else{ //Confirm taken in subpartitions
-                printf(" %s, %u, %zu ->",
-                    "ALLOCATED",
-                    startIndexToCheck >> 10,
-                    sizeToCheck >> 10
-                );
+                    totalSizeOfSubpartitionsLeft -= sizeToCheck;
+                    sizeLeft -= sizeToCheck;
+                } else{ //Confirm taken in subpartitions
+                    printf(" %s, %u, %zu ->",
+                        "ALLOCATED",
+                        startIndexToCheck >> 10,
+                        sizeToCheck >> 10
+                    );
 
-                if(nextCheckCount == 0){ //We want to lowest valid baseStartIndex
-                    baseStartIndex = startIndexToCheck;
+                    if(nextCheckCount == 0){ //We want to lowest valid baseStartIndex
+                        baseStartIndex = startIndexToCheck;
+                    }
+
+                    nextCheckCount += 2;
                 }
-                
-                nextCheckCount += 2;
             }
         }
 
@@ -226,5 +228,81 @@ tryToAlloc:
 
 // Frees memory pointer to by ptr.
 void myfree(void *ptr) {
+    if(ptr == NULL){
+        return; //Fail silently
+    }
+
+    unsigned int startIndex = (unsigned int)get_index(ptr);
+
+    TNode* linkedListNode = find_node(_memlist, startIndex);
+
+    //ptr "does not point to a memory region created by mymalloc" or mem partition is alr free
+    if(linkedListNode == NULL || linkedListNode->isTaken == '0'){
+        return; //Fail silently
+    }
+    //*/
+
+    int powOfGequalNearestPowOfTwo = -1; //Init with invalid val
+
+    while(linkedListNode->length > (1 << (++powOfGequalNearestPowOfTwo + 10))){ //Do nth in loop, + 10 for conversion from KiB to bytes
+    }
+
+    if(buddySystemArr[powOfGequalNearestPowOfTwo] == NULL){ //No need to merge
+        TNode* buddySystemNode = make_node(0, NULL);
+
+        buddySystemNode->key = linkedListNode->key;
+
+        insert_node(buddySystemArr + powOfGequalNearestPowOfTwo, buddySystemNode, ASCENDING);
+
+        linkedListNode->isTaken = '0';
+    } else{
+        unsigned int mergedKey = linkedListNode->key;
+        TNode* otherLinkedListNode;
+        
+        while(powOfGequalNearestPowOfTwo < MAX_ORDER - 1 && buddySystemArr[powOfGequalNearestPowOfTwo] != NULL){
+            otherLinkedListNode = find_node(_memlist, buddySystemArr[powOfGequalNearestPowOfTwo]->key);
+
+            if(buddySystemArr[powOfGequalNearestPowOfTwo]->key < mergedKey){
+                mergedKey = buddySystemArr[powOfGequalNearestPowOfTwo]->key;
+
+                delete_node(
+                    &_memlist,
+                    linkedListNode
+                ); //Handles all linking of nodes
+
+                linkedListNode = otherLinkedListNode;
+
+                linkedListNode->length <<= 1;
+            } else{
+                delete_node(
+                    &_memlist,
+                    otherLinkedListNode
+                ); //Handles all linking of nodes
+
+                otherLinkedListNode = NULL; //Just gd prac
+
+                linkedListNode->length <<= 1;
+            }
+
+            delete_node(
+                buddySystemArr + powOfGequalNearestPowOfTwo,
+                buddySystemArr[powOfGequalNearestPowOfTwo]
+            ); //Handles all linking of nodes
+
+            powOfGequalNearestPowOfTwo <<= 1; //Move up a size lvl (multiple of 2)
+        }
+
+        TNode* buddySystemNode = make_node(0, NULL);
+
+        buddySystemNode->key = mergedKey;
+
+        insert_node(buddySystemArr + powOfGequalNearestPowOfTwo, buddySystemNode, ASCENDING);
+    }
+
+    //* Depopulate heap with actual units deallocated
+    for(size_t i = linkedListNode->key; i < linkedListNode->key + linkedListNode->length; ++i){
+        _heap[i] = '0';
+    }
+    //*/
 }
 
