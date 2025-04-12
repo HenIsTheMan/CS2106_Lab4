@@ -40,9 +40,11 @@ long get_size(void *ptr) { //Returns size of allocated mem blk in bytes
 
     unsigned int index = startIndex;
 
-    while(index < MEMSIZE && _heap[index] == '1'){
+    //* index - startIndex <= node->length to prevent counting of '1's that are from another partition (aka from another mem blk)
+    while(index < MEMSIZE && _heap[index] == '1' && index - startIndex <= node->length){
         ++index;
     }
+    //*/
 
     /* Not possible since we checked _memlist: Size of 0 means ptr is not a valid starting address of an allocated mem blk
     if(index == startIndex){
@@ -155,7 +157,7 @@ tryToAlloc:
         //node->key = savedStartIndex; //Alr the case (obvious)
         //node->length = 1 << (powOfGequalNearestPowOfTwo + 10); //+ 10 for...
 
-        //* Populate heap with actual units allocated
+        //* Populate heap with mem units allocated (can use memset but must #include <string.h>)
         for(unsigned int i = savedStartIndex; i < savedStartIndex + size; ++i){
             _heap[i] = '1';
         }
@@ -247,8 +249,10 @@ void myfree(void *ptr) {
     while(linkedListNode->length > (1 << (++powOfGequalNearestPowOfTwo + 10))){ //Do nth in loop, + 10 for conversion from KiB to bytes
     }
 
+    TNode* buddySystemNode;
+
     if(buddySystemArr[powOfGequalNearestPowOfTwo] == NULL){ //No need to merge
-        TNode* buddySystemNode = make_node(0, NULL);
+        buddySystemNode = make_node(0, NULL);
 
         buddySystemNode->key = linkedListNode->key;
 
@@ -294,15 +298,15 @@ void myfree(void *ptr) {
             ++powOfGequalNearestPowOfTwo; //Move up a size lvl
         }
 
-        TNode* buddySystemNode = make_node(0, NULL);
+        buddySystemNode = make_node(0, NULL);
 
         buddySystemNode->key = mergedKey;
 
         insert_node(buddySystemArr + powOfGequalNearestPowOfTwo, buddySystemNode, ASCENDING);
     }
 
-    //* Depopulate heap with actual units deallocated
-    for(size_t i = linkedListNode->key; i < linkedListNode->key + linkedListNode->length; ++i){
+    //* Depopulate heap with mem units deallocated (can use...)
+    for(size_t i = buddySystemNode->key; i < buddySystemNode->key + (1 << (powOfGequalNearestPowOfTwo + 10)); ++i){
         _heap[i] = '0';
     }
     //*/
