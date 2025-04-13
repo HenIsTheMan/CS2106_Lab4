@@ -244,6 +244,7 @@ void myfree(void *ptr) {
 
     while((1 << (++pow + 10)) != linkedListNode->length){ //Do nth in loop, + 10 for conversion from KiB to bytes
     }
+    //*/
 
 CheckBuddy:
     //* Find startIndex of buddy using bitwise XOR to flip the correct bit
@@ -306,5 +307,17 @@ NoMoreBuddy:
         _heap[i] = '0';
     }
     //*/
+}
+
+void destroy(){
+    while(_memlist != NULL){
+        delete_node(&_memlist, _memlist); //Handles all linking of nodes
+    }
+
+    for(int i = 0; i < MAX_ORDER; ++i){
+        while(buddySystemArr[i] != NULL){
+            delete_node(buddySystemArr + i, buddySystemArr[i]);
+        }
+    }
 }
 
