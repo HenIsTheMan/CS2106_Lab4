@@ -41,14 +41,9 @@ long get_size(void *ptr) { //Returns size of allocated mem blk in bytes
     unsigned int index = startIndex;
 
     //* index - startIndex <= node->length to prevent counting of '1's that are from another partition (aka from another mem blk)
-    while(index < MEMSIZE && _heap[index] == '1' && index - startIndex <= node->length){
+    ///index - startIndex <= node->length also removes need to check index < MEMSIZE (not possible with correct implementation)
+    while(index - startIndex <= node->length && _heap[index] == '1'){
         ++index;
-    }
-    //*/
-
-    /* Not possible since we checked _memlist: Size of 0 means ptr is not a valid starting address of an allocated mem blk
-    if(index == startIndex){
-        return -1;
     }
     //*/
 
@@ -244,69 +239,70 @@ void myfree(void *ptr) {
     }
     //*/
 
-    int powOfGequalNearestPowOfTwo = -1; //Init with invalid val
+    //* Find pow where 2^pow = linkedListNode->length
+    int pow = -1; //Init with invalid val
 
-    while(linkedListNode->length > (1 << (++powOfGequalNearestPowOfTwo + 10))){ //Do nth in loop, + 10 for conversion from KiB to bytes
+    while((1 << (++pow + 10)) != linkedListNode->length){ //Do nth in loop, + 10 for conversion from KiB to bytes
     }
 
-    TNode* buddySystemNode;
+CheckBuddy:
+    //* Find startIndex of buddy using bitwise XOR to flip the correct bit
+    unsigned int bitmask = (unsigned int)linkedListNode->length;
 
-    if(buddySystemArr[powOfGequalNearestPowOfTwo] == NULL){ //No need to merge
-        buddySystemNode = make_node(0, NULL);
+    startIndex = linkedListNode->key; //Need for if linkedListNode gets updated below
 
-        buddySystemNode->key = linkedListNode->key;
+    startIndex ^= bitmask; //Calc startIndex of buddy
+    //*/
 
-        insert_node(buddySystemArr + powOfGequalNearestPowOfTwo, buddySystemNode, ASCENDING);
+    TNode* buddyNode = find_node(buddySystemArr[pow], startIndex);
+    TNode* node;
 
-        linkedListNode->isTaken = '0';
-    } else{
-        unsigned int mergedKey = linkedListNode->key;
-        TNode* otherLinkedListNode;
-        
-        while(powOfGequalNearestPowOfTwo < MAX_ORDER - 1 && buddySystemArr[powOfGequalNearestPowOfTwo] != NULL){
-            otherLinkedListNode = find_node(_memlist, buddySystemArr[powOfGequalNearestPowOfTwo]->key);
+    if(buddyNode != NULL){ //If buddy is free (need to merge)
+        TNode* otherLinkedListNode = find_node(_memlist, buddyNode->key);
 
-            if(buddySystemArr[powOfGequalNearestPowOfTwo]->key < mergedKey){
-                mergedKey = buddySystemArr[powOfGequalNearestPowOfTwo]->key;
-
-                delete_node(
-                    &_memlist,
-                    linkedListNode
-                ); //Handles all linking of nodes
-
-                linkedListNode = otherLinkedListNode;
-
-                //linkedListNode->isTaken = '0'; //otherLinkedListNode found using key from node in buddySystemArr[...] so alr the case
-                linkedListNode->length <<= 1;
-            } else{
-                delete_node(
-                    &_memlist,
-                    otherLinkedListNode
-                ); //Handles all linking of nodes
-
-                otherLinkedListNode = NULL; //Just gd prac
-
-                linkedListNode->isTaken = '0';
-                linkedListNode->length <<= 1;
-            }
-
+        if(linkedListNode->key < buddyNode->key){
             delete_node(
-                buddySystemArr + powOfGequalNearestPowOfTwo,
-                buddySystemArr[powOfGequalNearestPowOfTwo]
+                &_memlist,
+                otherLinkedListNode
             ); //Handles all linking of nodes
 
-            ++powOfGequalNearestPowOfTwo; //Move up a size lvl
+            otherLinkedListNode = NULL; //So otherLinkedListNode is not a dangling ptr
+        } else{
+            delete_node(
+                &_memlist,
+                linkedListNode
+            ); //Handles all linking of nodes
+
+            linkedListNode = otherLinkedListNode;
         }
 
-        buddySystemNode = make_node(0, NULL);
+        linkedListNode->length <<= 1;
 
-        buddySystemNode->key = mergedKey;
+        delete_node(
+            buddySystemArr + pow,
+            buddyNode
+        ); //Handles all linking of nodes
 
-        insert_node(buddySystemArr + powOfGequalNearestPowOfTwo, buddySystemNode, ASCENDING);
+        ++pow; //Move up a size lvl
+
+        if(linkedListNode->length < MEMSIZE){
+            goto CheckBuddy;
+        }
+
+        goto NoMoreBuddy;
+    } else{
+NoMoreBuddy:
+        node = make_node(0, NULL);
+
+        node->key = linkedListNode->key;
+
+        insert_node(buddySystemArr + pow, node, ASCENDING);
+
+        linkedListNode->isTaken = '0'; //Done when linkedListNode is finalized ver
     }
 
     //* Depopulate heap with mem units deallocated (can use...)
-    for(size_t i = buddySystemNode->key; i < buddySystemNode->key + (1 << (powOfGequalNearestPowOfTwo + 10)); ++i){
+    for(size_t i = node->key; i < node->key + (1 << (pow + 10)); ++i){
         _heap[i] = '0';
     }
     //*/
